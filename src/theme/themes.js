@@ -1,0 +1,147 @@
+export const THEME_PRESETS = [
+  {
+    id: 'aurora-lime',
+    name: 'Aurora Lime',
+    subtitle: 'Orbital Default',
+    accentColor: '#B6F36A',
+    highlightColor: '#D5FFA1',
+    backgroundColor: '#10121B',
+    cardColor: '#1A1D28',
+    borderColor: '#2B2F3C',
+    planetColor: '#B6F36A',
+    planetHighlight: '#D5FFA1',
+    badgeBg: '#262D25',
+    buttonTextColor: '#10121B',
+    textColor: '#F4F4F1',
+    textMuted: '#9297A5',
+    subtleBorder: '#232836',
+  },
+  {
+    id: 'cyber-cyan',
+    name: 'Cyber Cyan',
+    subtitle: 'Deep Space Ion',
+    accentColor: '#00F0FF',
+    highlightColor: '#A6F8FF',
+    backgroundColor: '#0A1118',
+    cardColor: '#111D2A',
+    borderColor: '#1C3146',
+    planetColor: '#00F0FF',
+    planetHighlight: '#B2F9FF',
+    badgeBg: '#0F2B36',
+    buttonTextColor: '#0A1118',
+    textColor: '#F0F9FF',
+    textMuted: '#829EB5',
+    subtleBorder: '#162738',
+  },
+  {
+    id: 'solar-flare',
+    name: 'Solar Flare',
+    subtitle: 'Stellar Fusion',
+    accentColor: '#FFB020',
+    highlightColor: '#FFE194',
+    backgroundColor: '#15110B',
+    cardColor: '#221B13',
+    borderColor: '#3D2F1E',
+    planetColor: '#FF9500',
+    planetHighlight: '#FFCC80',
+    badgeBg: '#342615',
+    buttonTextColor: '#15110B',
+    textColor: '#FFF9F0',
+    textMuted: '#A89984',
+    subtleBorder: '#2E2214',
+  },
+  {
+    id: 'cosmic-violet',
+    name: 'Cosmic Violet',
+    subtitle: 'Nebula Glow',
+    accentColor: '#C084FC',
+    highlightColor: '#E9D5FF',
+    backgroundColor: '#120E1C',
+    cardColor: '#1D172E',
+    borderColor: '#332752',
+    planetColor: '#A855F7',
+    planetHighlight: '#D8B4FE',
+    badgeBg: '#2C1D42',
+    buttonTextColor: '#120E1C',
+    textColor: '#FAF5FF',
+    textMuted: '#9F91B8',
+    subtleBorder: '#281E40',
+  },
+  {
+    id: 'mars-crimson',
+    name: 'Mars Crimson',
+    subtitle: 'Red Planet Core',
+    accentColor: '#FF4D6D',
+    highlightColor: '#FFA8B6',
+    backgroundColor: '#160D12',
+    cardColor: '#26141D',
+    borderColor: '#42202E',
+    planetColor: '#FF3366',
+    planetHighlight: '#FF8FAB',
+    badgeBg: '#391A26',
+    buttonTextColor: '#160D12',
+    textColor: '#FFF0F3',
+    textMuted: '#B08E9B',
+    subtleBorder: '#341926',
+  },
+  {
+    id: 'matrix-emerald',
+    name: 'Matrix Emerald',
+    subtitle: 'Synthetic Biosphere',
+    accentColor: '#00E676',
+    highlightColor: '#B9F6CA',
+    backgroundColor: '#09150E',
+    cardColor: '#102417',
+    borderColor: '#194027',
+    planetColor: '#00C853',
+    planetHighlight: '#69F0AE',
+    badgeBg: '#13361E',
+    buttonTextColor: '#09150E',
+    textColor: '#E8F5E9',
+    textMuted: '#81A88C',
+    subtleBorder: '#14311F',
+  },
+  {
+    id: 'monochrome-void',
+    name: 'Starlight Void',
+    subtitle: 'Silver & Obsidian',
+    accentColor: '#E2E8F0',
+    highlightColor: '#FFFFFF',
+    backgroundColor: '#0D0F12',
+    cardColor: '#171B21',
+    borderColor: '#29303D',
+    planetColor: '#CBD5E1',
+    planetHighlight: '#F8FAFC',
+    badgeBg: '#222834',
+    buttonTextColor: '#0D0F12',
+    textColor: '#F8FAFC',
+    textMuted: '#94A3B8',
+    subtleBorder: '#1F242E',
+  },
+];
+
+export const ACCENT_SWATCHES = [
+  '#B6F36A', // Aurora Lime
+  '#00F0FF', // Cyber Cyan
+  '#FFB020', // Solar Amber
+  '#C084FC', // Cosmic Violet
+  '#FF4D6D', // Crimson
+  '#00E676', // Emerald
+  '#38BDF8', // Sky Blue
+  '#F472B6', // Neon Pink
+  '#FBBF24', // Yellow Gold
+  '#E2E8F0', // Starlight Silver
+];
+
+export const PLANET_SWATCHES = [
+  { name: 'Terra', color: '#B6F36A', highlight: '#D5FFA1' },
+  { name: 'Neptune', color: '#00F0FF', highlight: '#A6F8FF' },
+  { name: 'Mars', color: '#FF4D6D', highlight: '#FFA8B6' },
+  { name: 'Jupiter', color: '#FFB020', highlight: '#FFE194' },
+  { name: 'Europa', color: '#38BDF8', highlight: '#BAE6FD' },
+  { name: 'Pulsar', color: '#C084FC', highlight: '#E9D5FF' },
+  { name: 'Moon', color: '#E2E8F0', highlight: '#FFFFFF' },
+];
+
+export const DEFAULT_THEME = THEME_PRESETS[0];
+

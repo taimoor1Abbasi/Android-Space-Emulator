@@ -1,30 +1,191 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import {
-  ActivityIndicator,
-  Pressable,
+  SafeAreaView,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 
+import { DEFAULT_THEME } from './src/theme/themes';
+import {
+  STORAGE_KEYS,
+  clearAllOrbitalStorage,
+  loadStorageItem,
+  saveStorageItem,
+} from './src/storage/storage';
+import TabBar from './src/components/TabBar';
+import DisplayTab from './src/components/DisplayTab';
+import ColorsTab from './src/components/ColorsTab';
+import SettingsTab from './src/components/SettingsTab';
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState('display');
+  const [theme, setTheme] = useState(DEFAULT_THEME);
+  const [rememberTab, setRememberTab] = useState(true);
+  const [savedTime, setSavedTime] = useState(null);
+  const [savedStatus, setSavedStatus] = useState('');
+
   const [isLandscape, setIsLandscape] = useState(false);
   const [isChanging, setIsChanging] = useState(false);
   const [error, setError] = useState('');
+
   const { width, height } = useWindowDimensions();
   const isWideLayout = width > height;
+  const statusTimerRef = useRef(null);
 
+  // Helper to show temporary save status
+  const triggerSaveNotification = (msg = 'Changes saved ✓') => {
+    setSavedStatus(msg);
+    if (statusTimerRef.current) {
+      clearTimeout(statusTimerRef.current);
+    }
+    statusTimerRef.current = setTimeout(() => {
+      setSavedStatus('');
+    }, 2500);
+  };
+
+  // Load persisted theme and tab preferences on startup
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadPersistedState() {
+      try {
+        const [savedTheme, savedTab, systemPrefs, lastSaved] = await Promise.all([
+          loadStorageItem(STORAGE_KEYS.THEME_CONFIG, null),
+          loadStorageItem(STORAGE_KEYS.ACTIVE_TAB, null),
+          loadStorageItem(STORAGE_KEYS.SYSTEM_PREFS, null),
+          loadStorageItem(STORAGE_KEYS.LAST_SAVED, null),
+        ]);
+
+        if (!isMounted) return;
+
+        if (savedTheme) {
+          setTheme((prev) => ({ ...prev, ...savedTheme }));
+        }
+
+        const shouldRememberTab = systemPrefs?.rememberTab !== false;
+        setRememberTab(shouldRememberTab);
+
+        if (shouldRememberTab && savedTab) {
+          setActiveTab(savedTab);
+        }
+
+        if (lastSaved) {
+          setSavedTime(lastSaved);
+        }
+      } catch (loadErr) {
+        console.warn('Error loading persisted orbital state:', loadErr);
+      }
+    }
+
+    loadPersistedState();
+
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
       (orientationError) => {
-        setError(`Couldn't set the starting orientation: ${orientationError.message}`);
+        if (isMounted) {
+          setError(`Couldn't set the starting orientation: ${orientationError.message}`);
+        }
       }
     );
+
+    return () => {
+      isMounted = false;
+      if (statusTimerRef.current) {
+        clearTimeout(statusTimerRef.current);
+      }
+    };
   }, []);
 
+  // Handle Tab Change and persist
+  const handleSelectTab = async (tabId) => {
+    setActiveTab(tabId);
+    if (rememberTab) {
+      await saveStorageItem(STORAGE_KEYS.ACTIVE_TAB, tabId);
+      triggerSaveNotification(`Tab switched to ${tabId.toUpperCase()}`);
+    }
+  };
+
+  // Handle Preset Selection and persist
+  const handleSelectPreset = async (preset) => {
+    setTheme(preset);
+    const now = new Date().toISOString();
+    setSavedTime(now);
+    await saveStorageItem(STORAGE_KEYS.THEME_CONFIG, preset);
+    triggerSaveNotification(`Applied ${preset.name} ✓`);
+  };
+
+  // Handle Custom Accent Selection and persist
+  const handleSelectAccent = async (hex) => {
+    const updated = {
+      ...theme,
+      id: 'custom',
+      name: `${theme.name || 'Custom'} (${hex.toUpperCase()})`,
+      accentColor: hex,
+      highlightColor: hex,
+    };
+    setTheme(updated);
+    const now = new Date().toISOString();
+    setSavedTime(now);
+    await saveStorageItem(STORAGE_KEYS.THEME_CONFIG, updated);
+    triggerSaveNotification(`Accent set to ${hex} ✓`);
+  };
+
+  // Handle Planet Selection and persist
+  const handleSelectPlanet = async (planetInfo) => {
+    const updated = {
+      ...theme,
+      planetColor: planetInfo.color,
+      planetHighlight: planetInfo.highlight,
+    };
+    setTheme(updated);
+    const now = new Date().toISOString();
+    setSavedTime(now);
+    await saveStorageItem(STORAGE_KEYS.THEME_CONFIG, updated);
+    triggerSaveNotification(`Planet style: ${planetInfo.name} ✓`);
+  };
+
+  // Explicit Save Theme Button
+  const handleExplicitSave = async () => {
+    const now = new Date().toISOString();
+    setSavedTime(now);
+    await saveStorageItem(STORAGE_KEYS.THEME_CONFIG, theme);
+    triggerSaveNotification('All theme changes saved! ✓');
+  };
+
+  // Reset Theme to Default
+  const handleResetThemeDefault = async () => {
+    setTheme(DEFAULT_THEME);
+    const now = new Date().toISOString();
+    setSavedTime(now);
+    await saveStorageItem(STORAGE_KEYS.THEME_CONFIG, DEFAULT_THEME);
+    triggerSaveNotification('Aurora Default restored ✓');
+  };
+
+  // Toggle Remember Tab
+  const handleToggleRememberTab = async () => {
+    const nextVal = !rememberTab;
+    setRememberTab(nextVal);
+    await saveStorageItem(STORAGE_KEYS.SYSTEM_PREFS, { rememberTab: nextVal });
+    if (nextVal) {
+      await saveStorageItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
+    }
+    triggerSaveNotification(nextVal ? 'Tab memory active' : 'Tab memory disabled');
+  };
+
+  // Reset All Storage Data
+  const handleResetAllData = async () => {
+    await clearAllOrbitalStorage();
+    setTheme(DEFAULT_THEME);
+    setActiveTab('display');
+    setRememberTab(true);
+    setSavedTime(null);
+    triggerSaveNotification('All settings reset to default ✓');
+  };
+
+  // Screen orientation toggling
   const toggleOrientation = async () => {
     const nextIsLandscape = !isLandscape;
     setIsChanging(true);
@@ -37,6 +198,7 @@ export default function App() {
           : ScreenOrientation.OrientationLock.PORTRAIT_UP
       );
       setIsLandscape(nextIsLandscape);
+      await saveStorageItem(STORAGE_KEYS.ORIENTATION_PREF, nextIsLandscape ? 'landscape' : 'portrait');
     } catch (orientationError) {
       setError(`Couldn't change the orientation: ${orientationError.message}`);
     } finally {
@@ -45,318 +207,91 @@ export default function App() {
   };
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.backgroundColor }]}>
       <StatusBar style="light" />
-      <View style={[styles.content, isWideLayout && styles.contentWide]}>
-        <View style={styles.visualColumn}>
-          <View style={styles.orbit}>
-            <View style={styles.orbitRing} />
-            <View style={styles.orbitRingInner} />
-            <View style={styles.planet}>
-              <View style={styles.planetHighlight} />
-            </View>
-            <View style={styles.orbitDot} />
-          </View>
-          <Text style={styles.eyebrow}>DISPLAY CONTROL</Text>
-          <Text style={styles.heading}>A new{'\n'}point of view.</Text>
-          <Text style={styles.description}>
-            Turn your screen to explore your space from a different angle.
-          </Text>
-        </View>
 
-        <View style={styles.controlCard}>
-          <View style={styles.cardTopRow}>
-            <Text style={styles.cardEyebrow}>CURRENT ORIENTATION</Text>
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>LIVE</Text>
-            </View>
-          </View>
+      <View style={styles.appWrapper}>
+        {/* Persistent Tab Bar */}
+        <TabBar
+          activeTab={activeTab}
+          onSelectTab={handleSelectTab}
+          theme={theme}
+          savedStatus={savedStatus}
+        />
 
-          <View style={styles.orientationDisplay}>
-            <View
-              style={[
-                styles.orientationFrame,
-                isLandscape ? styles.orientationFrameLandscape : styles.orientationFramePortrait,
-              ]}
-            >
-              <View style={styles.orientationFrameLine} />
-            </View>
-            <View style={styles.orientationCopy}>
-              <Text style={styles.orientationName}>
-                {isLandscape ? 'Landscape' : 'Portrait'}
-              </Text>
-              <Text style={styles.orientationHint}>
-                {isLandscape ? 'Wide view' : 'Tall view'}
-              </Text>
-            </View>
-          </View>
+        {/* Tab Content Panels */}
+        <View style={styles.tabContentContainer}>
+          {activeTab === 'display' && (
+            <DisplayTab
+              isLandscape={isLandscape}
+              isChanging={isChanging}
+              error={error}
+              toggleOrientation={toggleOrientation}
+              isWideLayout={isWideLayout}
+              width={width}
+              height={height}
+              theme={theme}
+            />
+          )}
 
-          <View style={styles.divider} />
+          {activeTab === 'colors' && (
+            <ColorsTab
+              theme={theme}
+              onSelectPreset={handleSelectPreset}
+              onSelectAccent={handleSelectAccent}
+              onSelectPlanet={handleSelectPlanet}
+              onSaveTheme={handleExplicitSave}
+              onResetDefault={handleResetThemeDefault}
+              isWideLayout={isWideLayout}
+              savedTime={savedTime}
+            />
+          )}
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Switch to ${isLandscape ? 'portrait' : 'landscape'} orientation`}
-            disabled={isChanging}
-            onPress={toggleOrientation}
-            style={({ pressed }) => [
-              styles.button,
-              pressed && !isChanging && styles.buttonPressed,
-              isChanging && styles.buttonDisabled,
-            ]}
-          >
-            {isChanging ? (
-              <ActivityIndicator color="#10121B" />
-            ) : (
-              <>
-                <Text style={styles.buttonText}>
-                  Switch to {isLandscape ? 'portrait' : 'landscape'}
-                </Text>
-                <Text style={styles.buttonArrow}>↗</Text>
-              </>
-            )}
-          </Pressable>
-
-          {error ? (
-            <Text accessibilityRole="alert" style={styles.errorText}>
-              {error}
-            </Text>
-          ) : (
-            <Text style={styles.helperText}>Your screen will rotate instantly.</Text>
+          {activeTab === 'settings' && (
+            <SettingsTab
+              theme={theme}
+              activeTab={activeTab}
+              savedTime={savedTime}
+              rememberTab={rememberTab}
+              onToggleRememberTab={handleToggleRememberTab}
+              onResetAllData={handleResetAllData}
+              isWideLayout={isWideLayout}
+            />
           )}
         </View>
+
+        {/* Persistent Footer */}
+        <Text style={[styles.footer, { color: theme.textMuted }]}>
+          ORBITAL 01 · {activeTab.toUpperCase()} · {theme.name?.toUpperCase() || 'DEFAULT'}
+        </Text>
       </View>
-      <Text style={styles.footer}>ORBITAL 01 · SCREEN SETTINGS</Text>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#10121B',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingTop: 18,
   },
-  content: {
+  appWrapper: {
+    flex: 1,
+    maxWidth: 960,
     width: '100%',
-    maxWidth: 480,
     alignSelf: 'center',
-    gap: 36,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
-  contentWide: {
-    maxWidth: 900,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 64,
-  },
-  visualColumn: {
-    alignItems: 'flex-start',
-  },
-  orbit: {
-    width: 126,
-    height: 126,
-    alignItems: 'center',
+  tabContentContainer: {
+    flex: 1,
     justifyContent: 'center',
-    marginBottom: 28,
-  },
-  orbitRing: {
-    position: 'absolute',
-    width: 126,
-    height: 126,
-    borderColor: '#323744',
-    borderWidth: 1,
-    borderRadius: 63,
-  },
-  orbitRingInner: {
-    position: 'absolute',
-    width: 90,
-    height: 90,
-    borderColor: '#323744',
-    borderWidth: 1,
-    borderRadius: 45,
-  },
-  planet: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#B6F36A',
-    overflow: 'hidden',
-  },
-  planetHighlight: {
-    position: 'absolute',
-    width: 26,
-    height: 62,
-    top: -5,
-    right: 3,
-    borderRadius: 20,
-    backgroundColor: '#D5FFA1',
-    transform: [{ rotate: '35deg' }],
-  },
-  orbitDot: {
-    position: 'absolute',
-    right: 13,
-    top: 13,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#B6F36A',
-  },
-  eyebrow: {
-    color: '#B6F36A',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2.4,
-    marginBottom: 12,
-  },
-  heading: {
-    color: '#F4F4F1',
-    fontSize: 42,
-    fontWeight: '600',
-    letterSpacing: -1.8,
-    lineHeight: 46,
-  },
-  description: {
-    color: '#9297A5',
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 14,
-    maxWidth: 310,
-  },
-  controlCard: {
-    width: '100%',
-    backgroundColor: '#1A1D28',
-    borderColor: '#2B2F3C',
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 22,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardEyebrow: {
-    color: '#9297A5',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.6,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 20,
-    backgroundColor: '#262D25',
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#B6F36A',
-  },
-  liveText: {
-    color: '#B6F36A',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  orientationDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-    paddingVertical: 28,
-  },
-  orientationFrame: {
-    borderColor: '#B6F36A',
-    borderWidth: 2,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  orientationFramePortrait: {
-    width: 38,
-    height: 54,
-  },
-  orientationFrameLandscape: {
-    width: 54,
-    height: 38,
-  },
-  orientationFrameLine: {
-    width: 9,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#B6F36A',
-    position: 'absolute',
-    bottom: 4,
-  },
-  orientationCopy: {
-    gap: 4,
-  },
-  orientationName: {
-    color: '#F4F4F1',
-    fontSize: 23,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-  },
-  orientationHint: {
-    color: '#9297A5',
-    fontSize: 13,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#2B2F3C',
-    marginBottom: 18,
-  },
-  button: {
-    minHeight: 56,
-    paddingHorizontal: 18,
-    backgroundColor: '#B6F36A',
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  buttonPressed: {
-    opacity: 0.84,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#10121B',
-    fontSize: 15,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
-  buttonArrow: {
-    color: '#10121B',
-    fontSize: 21,
-    fontWeight: '500',
-  },
-  helperText: {
-    color: '#777D8C',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 14,
-  },
-  errorText: {
-    color: '#FF9B9B',
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginTop: 14,
   },
   footer: {
-    position: 'absolute',
     alignSelf: 'center',
-    bottom: 14,
-    color: '#646A79',
+    marginTop: 10,
     fontSize: 9,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 1.8,
+    opacity: 0.7,
   },
 });
